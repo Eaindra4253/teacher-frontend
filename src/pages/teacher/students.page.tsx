@@ -13,6 +13,7 @@ import {
   Text,
   Paper,
   Stack,
+  MultiSelect,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
@@ -24,28 +25,37 @@ import {
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 
-const API_URL = "https://teacher-6pcl.onrender.com/api/students";
-// const API_URL = "http://localhost:5000/api/students";
+// const API_URL = "https://teacher-6pcl.onrender.com/api/students";
+const API_URL = "http://localhost:5000/api/students";
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<any[]>([]);
   const [opened, { open, close }] = useDisclosure(false);
   const [editingStudent, setEditingStudent] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [subjects, setSubjects] = useState([
+    "Myanmar",
+    "English",
+    "Mathematics",
+    "Chemistry",
+    "Physics",
+    "Biology",
+    "Economics",
+  ]);
+  const [newSubject, setNewSubject] = useState("");
 
   const form = useForm({
     initialValues: {
       name: "",
       grade: "",
-      subject: "",
+      subject: [] as string[],
       email: "",
       phone: "",
     },
     validate: {
       name: (value) => (value.trim().length > 0 ? null : "Name is required"),
       grade: (value) => (value.trim().length > 0 ? null : "Grade is required"),
-      subject: (value) =>
-        value.trim().length > 0 ? null : "Subject is required",
+      subject: (value) => (value.length > 0 ? null : "Subject is required"),
       phone: (value) =>
         /^[0-9]{6,15}$/.test(value)
           ? null
@@ -53,7 +63,6 @@ export default function StudentsPage() {
     },
   });
 
-  // ✅ Fetch students when component loads
   useEffect(() => {
     fetch(`${API_URL}`)
       .then((res) => res.json())
@@ -61,11 +70,9 @@ export default function StudentsPage() {
       .catch((err) => console.error("Error fetching students:", err));
   }, []);
 
-  // ✅ Add or update student
   const handleAddOrUpdateStudent = async (values: any) => {
     try {
       if (editingStudent) {
-        // Update existing student
         const res = await fetch(`${API_URL}/${editingStudent._id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -83,20 +90,17 @@ export default function StudentsPage() {
           color: "green",
         });
       } else {
-        // Add new student
         const res = await fetch(`${API_URL}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(values),
         });
 
-        console.log("Response from server when adding :", res);
-
         if (!res.ok) throw new Error("Failed to register student");
 
         const newStudent = await res.json();
         setStudents([...students, newStudent]);
-        console.log("New student added success :", newStudent);
+
         notifications.show({
           title: "✅ Success",
           message: "Student registered successfully!",
@@ -105,6 +109,7 @@ export default function StudentsPage() {
       }
 
       form.reset();
+      setNewSubject("");
       setEditingStudent(null);
       close();
     } catch (err) {
@@ -117,14 +122,17 @@ export default function StudentsPage() {
     }
   };
 
-  // ✅ Edit student
   const handleEdit = (student: any) => {
     setEditingStudent(student);
-    form.setValues(student);
+    form.setValues({
+      ...student,
+      subject: Array.isArray(student.subject)
+        ? student.subject
+        : [student.subject],
+    });
     open();
   };
 
-  // ✅ Delete student
   const handleDelete = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this student?")) {
       try {
@@ -149,7 +157,6 @@ export default function StudentsPage() {
     }
   };
 
-  // ✅ Filter students based on search
   const filteredStudents = students.filter((student) =>
     Object.values(student).some((value) =>
       String(value).toLowerCase().includes(searchQuery.toLowerCase())
@@ -160,7 +167,11 @@ export default function StudentsPage() {
     <Table.Tr key={student._id}>
       <Table.Td>{student.name || "-"}</Table.Td>
       <Table.Td>{student.grade || "-"}</Table.Td>
-      <Table.Td>{student.subject || "-"}</Table.Td>
+      <Table.Td>
+        {Array.isArray(student.subject)
+          ? student.subject.join(", ")
+          : student.subject || "-"}
+      </Table.Td>
       <Table.Td>{student.email || "-"}</Table.Td>
       <Table.Td>{student.phone || "-"}</Table.Td>
       <Table.Td>
@@ -173,7 +184,6 @@ export default function StudentsPage() {
           ? new Date(student.updated_at).toLocaleDateString()
           : "-"}
       </Table.Td>
-
       <Table.Td>
         <Group gap="xs">
           <ActionIcon
@@ -217,6 +227,7 @@ export default function StudentsPage() {
             onClick={() => {
               setEditingStudent(null);
               form.reset();
+              setNewSubject("");
               open();
             }}
             leftSection={<IconUserPlus size={16} />}
@@ -256,7 +267,6 @@ export default function StudentsPage() {
         </Table>
       </Paper>
 
-      {/* Modal for adding/editing students */}
       <Modal
         opened={opened}
         onClose={close}
@@ -274,11 +284,40 @@ export default function StudentsPage() {
               placeholder="e.g., Grade 10"
               {...form.getInputProps("grade")}
             />
-            <TextInput
-              label="Subject"
-              placeholder="e.g., English"
+
+            {/* MultiSelect for subjects */}
+            <MultiSelect
+              label="Subjects"
+              placeholder="Select subjects"
+              data={subjects}
+              searchable
               {...form.getInputProps("subject")}
             />
+
+            {/* Add new subject */}
+            <TextInput
+              placeholder="Add new subject"
+              value={newSubject}
+              onChange={(e) => setNewSubject(e.currentTarget.value)}
+              rightSection={
+                <Button
+                  size="xs"
+                  onClick={() => {
+                    if (newSubject && !subjects.includes(newSubject)) {
+                      setSubjects([...subjects, newSubject]);
+                      form.setFieldValue("subject", [
+                        ...form.values.subject,
+                        newSubject,
+                      ]);
+                      setNewSubject(""); // clear input
+                    }
+                  }}
+                >
+                  Add
+                </Button>
+              }
+            />
+
             <TextInput
               label="Email"
               placeholder="Enter email"
