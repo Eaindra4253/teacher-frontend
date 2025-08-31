@@ -57,8 +57,10 @@ export default function MantineProviderWrapper(
 ) {
   return (
     <MantineProvider theme={theme} defaultColorScheme="auto">
-      <Notifications />
-      <ModalsProvider {...props} />
+      <Notifications position="top-right" />
+      <ModalsProvider>
+        {props.children}
+      </ModalsProvider>
     </MantineProvider>
   );
 }

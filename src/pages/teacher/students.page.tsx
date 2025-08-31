@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
 import {
   Button,
@@ -14,15 +15,23 @@ import {
   Stack,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { IconEdit, IconTrash, IconUserPlus } from "@tabler/icons-react";
+import {
+  IconEdit,
+  IconTrash,
+  IconUserPlus,
+  IconSearch,
+} from "@tabler/icons-react";
 import { useForm } from "@mantine/form";
+import { notifications } from "@mantine/notifications";
 
-const API_URL = "https://teacher-6pcl.onrender.com/api/students"; // ⚡ change to your backend domain if hosted
+// const API_URL = "https://teacher-6pcl.onrender.com/api/students";
+const API_URL = "http://localhost:5000/api/students";
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<any[]>([]);
   const [opened, { open, close }] = useDisclosure(false);
   const [editingStudent, setEditingStudent] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const form = useForm({
     initialValues: {
@@ -30,11 +39,17 @@ export default function StudentsPage() {
       grade: "",
       subject: "",
       email: "",
-      major: "",
+      phone: "",
     },
     validate: {
-      name: (value) => (value ? null : "Name is required"),
-      email: (value) => (/^\S+@\S+$/.test(value) ? null : "Invalid email"),
+      name: (value) => (value.trim().length > 0 ? null : "Name is required"),
+      grade: (value) => (value.trim().length > 0 ? null : "Grade is required"),
+      subject: (value) =>
+        value.trim().length > 0 ? null : "Subject is required",
+      phone: (value) =>
+        /^[0-9]{6,15}$/.test(value)
+          ? null
+          : "Phone must be digits (6–15 numbers)",
     },
   });
 
@@ -56,10 +71,17 @@ export default function StudentsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(values),
         });
+
+        if (!res.ok) throw new Error("Failed to update student");
+
         const updated = await res.json();
-        setStudents(
-          students.map((s) => (s._id === updated._id ? updated : s))
-        );
+        setStudents(students.map((s) => (s._id === updated._id ? updated : s)));
+
+        notifications.show({
+          title: "✅ Success",
+          message: "Student updated successfully!",
+          color: "green",
+        });
       } else {
         // Add new student
         const res = await fetch(`${API_URL}`, {
@@ -67,14 +89,31 @@ export default function StudentsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(values),
         });
+
+        console.log("Response from server when adding :", res);
+
+        if (!res.ok) throw new Error("Failed to register student");
+
         const newStudent = await res.json();
         setStudents([...students, newStudent]);
+        console.log("New student added success :", newStudent);
+        notifications.show({
+          title: "✅ Success",
+          message: "Student registered successfully!",
+          color: "green",
+        });
       }
+
       form.reset();
       setEditingStudent(null);
       close();
     } catch (err) {
       console.error("Error saving student:", err);
+      notifications.show({
+        title: "❌ Error",
+        message: "Something went wrong while saving student!",
+        color: "red",
+      });
     }
   };
 
@@ -88,17 +127,53 @@ export default function StudentsPage() {
   // ✅ Delete student
   const handleDelete = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this student?")) {
-      await fetch(`${API_URL}/${id}`, { method: "DELETE" });
-      setStudents(students.filter((s) => s._id !== id));
+      try {
+        const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("Failed to delete student");
+
+        setStudents(students.filter((s) => s._id !== id));
+
+        notifications.show({
+          title: "✅ Deleted",
+          message: "Student deleted successfully!",
+          color: "green",
+        });
+      } catch (err) {
+        console.error("Error deleting student:", err);
+        notifications.show({
+          title: "❌ Error",
+          message: "Failed to delete student!",
+          color: "red",
+        });
+      }
     }
   };
 
-  const rows = students.map((student) => (
+  // ✅ Filter students based on search
+  const filteredStudents = students.filter((student) =>
+    Object.values(student).some((value) =>
+      String(value).toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  );
+
+  const rows = filteredStudents.map((student) => (
     <Table.Tr key={student._id}>
-      <Table.Td>{student.name}</Table.Td>
-      <Table.Td>{student.grade}</Table.Td>
-      <Table.Td>{student.subject}</Table.Td>
-      <Table.Td>{student.email}</Table.Td>
+      <Table.Td>{student.name || "-"}</Table.Td>
+      <Table.Td>{student.grade || "-"}</Table.Td>
+      <Table.Td>{student.subject || "-"}</Table.Td>
+      <Table.Td>{student.email || "-"}</Table.Td>
+      <Table.Td>{student.phone || "-"}</Table.Td>
+      <Table.Td>
+        {student.created_at
+          ? new Date(student.created_at).toLocaleDateString()
+          : "-"}
+      </Table.Td>
+      <Table.Td>
+        {student.updated_at
+          ? new Date(student.updated_at).toLocaleDateString()
+          : "-"}
+      </Table.Td>
+
       <Table.Td>
         <Group gap="xs">
           <ActionIcon
@@ -126,16 +201,29 @@ export default function StudentsPage() {
     <Container size="lg" pt="xl">
       <Group justify="space-between" mb="md">
         <Title order={2}>Manage Students</Title>
-        <Button
-          onClick={() => {
-            setEditingStudent(null);
-            form.reset();
-            open();
-          }}
-          leftSection={<IconUserPlus size={16} />}
-        >
-          Register Student
-        </Button>
+
+        <Group gap="sm">
+          <TextInput
+            placeholder="Search students..."
+            leftSection={<IconSearch size={16} stroke={1.5} />}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.currentTarget.value)}
+            size="sm"
+            radius="md"
+            w={220}
+          />
+
+          <Button
+            onClick={() => {
+              setEditingStudent(null);
+              form.reset();
+              open();
+            }}
+            leftSection={<IconUserPlus size={16} />}
+          >
+            Register Student
+          </Button>
+        </Group>
       </Group>
 
       <Paper withBorder shadow="md" p="lg" radius="md">
@@ -143,9 +231,12 @@ export default function StudentsPage() {
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Name</Table.Th>
-              <Table.Th>Year/Grade</Table.Th>
+              <Table.Th>Grade</Table.Th>
               <Table.Th>Subject</Table.Th>
-              <Table.Th>Email/Phone</Table.Th>
+              <Table.Th>Email</Table.Th>
+              <Table.Th>Phone</Table.Th>
+              <Table.Th>CreatedAt</Table.Th>
+              <Table.Th>UpdatedAt</Table.Th>
               <Table.Th>Actions</Table.Th>
             </Table.Tr>
           </Table.Thead>
@@ -154,7 +245,7 @@ export default function StudentsPage() {
               rows
             ) : (
               <Table.Tr>
-                <Table.Td colSpan={5}>
+                <Table.Td colSpan={8}>
                   <Text fw={500} ta="center" c="dimmed">
                     No students found.
                   </Text>
@@ -194,9 +285,9 @@ export default function StudentsPage() {
               {...form.getInputProps("email")}
             />
             <TextInput
-              label="Major"
-              placeholder="e.g., Computer Science"
-              {...form.getInputProps("major")}
+              label="Phone"
+              placeholder="e.g., 09******"
+              {...form.getInputProps("phone")}
             />
             <Button type="submit" mt="md">
               {editingStudent ? "Update" : "Register"}
