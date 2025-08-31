@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from 'react';
 import {
   Button,
@@ -44,7 +45,7 @@ export default function ClassesPage() {
   const handleAddOrUpdateClass = (values: any) => {
     if (editingClass) {
       setClasses(
-        classes.map((cls) => (cls.id === editingClass.id ? { ...values, id: editingClass.id } : cls))
+        classes.map((cls) => (cls.id === editingClass ? { ...values, id: editingClass } : cls))
       );
     } else {
       const newClass = { ...values, id: classes.length + 1 };

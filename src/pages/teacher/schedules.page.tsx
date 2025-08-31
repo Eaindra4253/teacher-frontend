@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from 'react';
 import {
   Button,
@@ -45,7 +46,7 @@ export default function SchedulesPage() {
     if (editingEvent) {
       setEvents(
         events.map((event) =>
-          event.id === editingEvent.id ? { ...values, id: editingEvent.id } : event
+          event.id === editingEvent ? { ...values, id: editingEvent } : event
         )
       );
     } else {

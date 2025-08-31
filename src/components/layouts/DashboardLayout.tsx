@@ -1,5 +1,4 @@
 import { SIDEBAR_WIDTH } from "@/configs/constants";
-import { useSocket } from "@/hooks/useSocket";
 import { useAuthStore } from "@/stores/auth.store";
 import { useLayoutStore } from "@/stores/layout.store";
 import { AppShell } from "@mantine/core";
