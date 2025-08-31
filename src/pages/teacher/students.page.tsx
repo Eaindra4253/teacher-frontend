@@ -25,8 +25,8 @@ import {
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 
-// const API_URL = "https://teacher-6pcl.onrender.com/api/students";
-const API_URL = "http://localhost:5000/api/students";
+const API_URL = "https://teacher-6pcl.onrender.com/api/students";
+//const API_URL = "http://localhost:5000/api/students";
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<any[]>([]);
