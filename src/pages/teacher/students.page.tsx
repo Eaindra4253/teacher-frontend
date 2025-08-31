@@ -17,7 +17,7 @@ import { useDisclosure } from "@mantine/hooks";
 import { IconEdit, IconTrash, IconUserPlus } from "@tabler/icons-react";
 import { useForm } from "@mantine/form";
 
-const API_URL = "https://teacher-6pcl.onrender.com"; // ⚡ change to your backend domain if hosted
+const API_URL = "https://teacher-6pcl.onrender.com/api/students"; // ⚡ change to your backend domain if hosted
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<any[]>([]);
