@@ -18,7 +18,12 @@ import {
   MultiSelect,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { IconEdit, IconTrash, IconUserPlus, IconSearch } from "@tabler/icons-react";
+import {
+  IconEdit,
+  IconTrash,
+  IconUserPlus,
+  IconSearch,
+} from "@tabler/icons-react";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 
@@ -88,7 +93,10 @@ export default function StudentsPage() {
     const rawSubjects = subjectKey ? row[subjectKey] || "" : "";
     const subjectArray =
       typeof rawSubjects === "string"
-        ? rawSubjects.split(",").map((s) => s.trim()).filter(Boolean)
+        ? rawSubjects
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
         : Array.isArray(rawSubjects)
         ? rawSubjects
         : [];
@@ -115,7 +123,9 @@ export default function StudentsPage() {
       const ts = (s.created_at || "").trim();
       return `sheet:${email}:${ts}`;
     };
-    (apiStudents || []).forEach((s) => map.set(keyFor(s), { ...s, source: "api" }));
+    (apiStudents || []).forEach((s) =>
+      map.set(keyFor(s), { ...s, source: "api" })
+    );
     (sheetStudents || []).forEach((s) => {
       const k = keyFor(s);
       if (!map.has(k)) map.set(k, s);
@@ -127,7 +137,9 @@ export default function StudentsPage() {
   async function fetchSheet() {
     try {
       const url = `${GOOGLE_SHEET_CSV}&t=${Date.now()}`;
-      const text = await fetch(url, { cache: "no-store" }).then((r) => r.text());
+      const text = await fetch(url, { cache: "no-store" }).then((r) =>
+        r.text()
+      );
       const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
       return (parsed.data as any[]).map((r, i) => mapRowToStudent(r, i));
     } catch (err) {
@@ -152,7 +164,10 @@ export default function StudentsPage() {
   useEffect(() => {
     let mounted = true;
     async function loadAll() {
-      const [apiData, sheetData] = await Promise.all([fetchApiStudents(), fetchSheet()]);
+      const [apiData, sheetData] = await Promise.all([
+        fetchApiStudents(),
+        fetchSheet(),
+      ]);
       if (!mounted) return;
       setStudents(mergeStudents(apiData, sheetData));
     }
@@ -169,7 +184,12 @@ export default function StudentsPage() {
   // === CRUD Handlers ===
   const handleAddOrUpdateStudent = async (values: any) => {
     try {
-      if (editingStudent && editingStudent.source === "api") {
+      if (
+        editingStudent &&
+        editingStudent._id &&
+        editingStudent.source === "api"
+      ) {
+        // 🟢 Update existing
         const res = await fetch(`${API_URL}/${editingStudent._id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -177,9 +197,18 @@ export default function StudentsPage() {
         });
         if (!res.ok) throw new Error("Update failed");
         const updated = await res.json();
-        setStudents((s) => s.map((x) => (x._id === updated._id ? { ...updated, source: "api" } : x)));
-        notifications.show({ title: "✅ Success", message: "Student updated!", color: "green" });
+        setStudents((s) =>
+          s.map((x) =>
+            x._id === updated._id ? { ...updated, source: "api" } : x
+          )
+        );
+        notifications.show({
+          title: "✅ Success",
+          message: "Student updated!",
+          color: "green",
+        });
       } else {
+        // 🟢 Insert new
         const res = await fetch(API_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -187,15 +216,36 @@ export default function StudentsPage() {
         });
         if (!res.ok) throw new Error("Create failed");
         const newStudent = await res.json();
-        setStudents((s) => [...s, { ...newStudent, source: "api" }]);
-        notifications.show({ title: "✅ Success", message: "Student registered!", color: "green" });
+
+        // ⬇️ Replace sheet-data with real API-data
+        setStudents((s) => {
+          if (editingStudent?.source === "sheet") {
+            return s.map((x) =>
+              x._id === editingStudent._id
+                ? { ...newStudent, source: "api" }
+                : x
+            );
+          }
+          return [...s, { ...newStudent, source: "api" }];
+        });
+
+        notifications.show({
+          title: "✅ Success",
+          message: "Student registered!",
+          color: "green",
+        });
       }
+
       form.reset();
       setNewSubject("");
       setEditingStudent(null);
       close();
     } catch (err) {
-      notifications.show({ title: "❌ Error", message: "Save failed", color: "red" });
+      notifications.show({
+        title: "❌ Error",
+        message: "Save failed",
+        color: "red",
+      });
     }
   };
 
@@ -204,7 +254,11 @@ export default function StudentsPage() {
     form.setValues({
       name: student.name || "",
       grade: student.grade || "",
-      subject: Array.isArray(student.subject) ? student.subject : (student.subject ? [student.subject] : []),
+      subject: Array.isArray(student.subject)
+        ? student.subject
+        : student.subject
+        ? [student.subject]
+        : [],
       email: student.email || "",
       phone: student.phone || "",
       address: student.address || "",
@@ -218,7 +272,11 @@ export default function StudentsPage() {
 
     if (source === "sheet") {
       setStudents((s) => s.filter((x) => x._id !== id));
-      notifications.show({ title: "✅ Deleted", message: "Sheet student removed locally", color: "green" });
+      notifications.show({
+        title: "✅ Deleted",
+        message: "Sheet student removed locally",
+        color: "green",
+      });
       return;
     }
 
@@ -226,30 +284,52 @@ export default function StudentsPage() {
       const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
       setStudents((s) => s.filter((x) => x._id !== id));
-      notifications.show({ title: "✅ Deleted", message: "Student removed", color: "green" });
+      notifications.show({
+        title: "✅ Deleted",
+        message: "Student removed",
+        color: "green",
+      });
     } catch {
-      notifications.show({ title: "❌ Error", message: "Delete failed", color: "red" });
+      notifications.show({
+        title: "❌ Error",
+        message: "Delete failed",
+        color: "red",
+      });
     }
   };
 
   // === Render ===
   const filteredStudents = students.filter((student) =>
-    Object.values(student).some((v) => String(v).toLowerCase().includes(searchQuery.toLowerCase()))
+    Object.values(student).some((v) =>
+      String(v).toLowerCase().includes(searchQuery.toLowerCase())
+    )
   );
 
   const rows = filteredStudents.map((student) => (
     <Table.Tr key={student._id}>
       <Table.Td>{student.name || "-"}</Table.Td>
       <Table.Td>{student.grade || "-"}</Table.Td>
-      <Table.Td>{Array.isArray(student.subject) ? student.subject.join(", ") : student.subject || "-"}</Table.Td>
+      <Table.Td>
+        {Array.isArray(student.subject)
+          ? student.subject.join(", ")
+          : student.subject || "-"}
+      </Table.Td>
       <Table.Td>{student.email || "-"}</Table.Td>
       <Table.Td>{student.phone || "-"}</Table.Td>
       <Table.Td>{student.address || "-"}</Table.Td>
       <Table.Td>{student.school || "-"}</Table.Td>
-      <Table.Td>{student.created_at ? new Date(student.created_at).toLocaleString() : "-"}</Table.Td>
+      <Table.Td>
+        {student.created_at
+          ? new Date(student.created_at).toLocaleString()
+          : "-"}
+      </Table.Td>
       <Table.Td>
         <Group gap="xs">
-          <ActionIcon variant="subtle" color="blue" onClick={() => handleEdit(student)}>
+          <ActionIcon
+            variant="subtle"
+            color="blue"
+            onClick={() => handleEdit(student)}
+          >
             <IconEdit style={{ width: rem(16), height: rem(16) }} />
           </ActionIcon>
           <ActionIcon
@@ -308,33 +388,56 @@ export default function StudentsPage() {
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {rows.length > 0 ? rows : (
+            {rows.length > 0 ? (
+              rows
+            ) : (
               <Table.Tr>
-                <Table.Td colSpan={9}><Text ta="center" c="dimmed">No students found.</Text></Table.Td>
+                <Table.Td colSpan={9}>
+                  <Text ta="center" c="dimmed">
+                    No students found.
+                  </Text>
+                </Table.Td>
               </Table.Tr>
             )}
           </Table.Tbody>
         </Table>
       </Paper>
 
-      <Modal opened={opened} onClose={close} title={editingStudent ? "Update Student" : "Register Student"}>
+      <Modal
+        opened={opened}
+        onClose={close}
+        title={editingStudent ? "Update Student" : "Register Student"}
+      >
         <form onSubmit={form.onSubmit(handleAddOrUpdateStudent)}>
           <Stack>
             <TextInput label="Full Name" {...form.getInputProps("name")} />
             <TextInput label="Grade" {...form.getInputProps("grade")} />
-            <MultiSelect label="Subjects" data={subjects} searchable {...form.getInputProps("subject")} />
+            <MultiSelect
+              label="Subjects"
+              data={subjects}
+              searchable
+              {...form.getInputProps("subject")}
+            />
             <TextInput
               placeholder="Add new subject"
               value={newSubject}
               onChange={(e) => setNewSubject(e.currentTarget.value)}
               rightSection={
-                <Button size="xs" onClick={() => {
-                  if (newSubject && !subjects.includes(newSubject)) {
-                    setSubjects((s) => [...s, newSubject]);
-                    form.setFieldValue("subject", [...form.values.subject, newSubject]);
-                    setNewSubject("");
-                  }
-                }}>Add</Button>
+                <Button
+                  size="xs"
+                  onClick={() => {
+                    if (newSubject && !subjects.includes(newSubject)) {
+                      setSubjects((s) => [...s, newSubject]);
+                      form.setFieldValue("subject", [
+                        ...form.values.subject,
+                        newSubject,
+                      ]);
+                      setNewSubject("");
+                    }
+                  }}
+                >
+                  Add
+                </Button>
               }
             />
             <TextInput label="Email" {...form.getInputProps("email")} />
@@ -342,7 +445,11 @@ export default function StudentsPage() {
             <TextInput label="Address" {...form.getInputProps("address")} />
             <TextInput label="School" {...form.getInputProps("school")} />
             <Button type="submit" mt="md">
-              {editingStudent ? (editingStudent.source === "api" ? "Update" : "Import & Create") : "Register"}
+              {editingStudent
+                ? editingStudent.source === "api"
+                  ? "Update"
+                  : "Import & Create"
+                : "Register"}
             </Button>
           </Stack>
         </form>
