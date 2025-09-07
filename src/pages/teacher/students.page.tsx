@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
 import Papa from "papaparse";
@@ -42,7 +43,15 @@ export default function StudentsPage() {
   const [newSubject, setNewSubject] = useState("");
 
   const form = useForm({
-    initialValues: { name: "", grade: "", subject: [] as string[], email: "", phone: "" },
+    initialValues: {
+      name: "",
+      grade: "",
+      subject: [] as string[],
+      email: "",
+      phone: "",
+      address: "",
+      school: "",
+    },
     validate: {
       name: (value) => (value.trim().length > 0 ? null : "Name is required"),
       grade: (value) => (value.trim().length > 0 ? null : "Grade is required"),
@@ -51,6 +60,10 @@ export default function StudentsPage() {
         /^[0-9]{6,15}$/.test(value)
           ? null
           : "Phone must be digits (6–15 numbers)",
+      address: (value) =>
+        value.trim().length > 0 ? null : "Address is required",
+      school: (value) =>
+        value.trim().length > 0 ? null : "School is required",
     },
   });
 
@@ -68,6 +81,8 @@ export default function StudentsPage() {
     const subjectKey = findKeyFor(row, ["subject", "subjects"]);
     const emailKey = findKeyFor(row, ["email", "e-mail"]);
     const phoneKey = findKeyFor(row, ["phone", "phone number"]);
+    const addressKey = findKeyFor(row, ["address", "home address"]);
+    const schoolKey = findKeyFor(row, ["school"]);
     const tsKey = findKeyFor(row, ["timestamp", "time", "submitted"]);
 
     const rawSubjects = subjectKey ? row[subjectKey] || "" : "";
@@ -85,6 +100,8 @@ export default function StudentsPage() {
       subject: subjectArray,
       email: emailKey ? row[emailKey] : "",
       phone: phoneKey ? row[phoneKey] : "",
+      address: addressKey ? row[addressKey] : "",
+      school: schoolKey ? row[schoolKey] : "",
       created_at: tsKey ? row[tsKey] : "",
       source: "sheet",
     };
@@ -109,7 +126,7 @@ export default function StudentsPage() {
   // === Fetchers ===
   async function fetchSheet() {
     try {
-      const url = `${GOOGLE_SHEET_CSV}&t=${Date.now()}`; // cache-buster
+      const url = `${GOOGLE_SHEET_CSV}&t=${Date.now()}`;
       const text = await fetch(url, { cache: "no-store" }).then((r) => r.text());
       const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
       return (parsed.data as any[]).map((r, i) => mapRowToStudent(r, i));
@@ -141,7 +158,7 @@ export default function StudentsPage() {
     }
     loadAll();
 
-    const POLL_MS = 15000; // 15s
+    const POLL_MS = 15000;
     const id = setInterval(loadAll, POLL_MS);
     return () => {
       mounted = false;
@@ -190,6 +207,8 @@ export default function StudentsPage() {
       subject: Array.isArray(student.subject) ? student.subject : (student.subject ? [student.subject] : []),
       email: student.email || "",
       phone: student.phone || "",
+      address: student.address || "",
+      school: student.school || "",
     });
     open();
   };
@@ -198,13 +217,11 @@ export default function StudentsPage() {
     if (!window.confirm("Delete this student?")) return;
 
     if (source === "sheet") {
-      // Remove only from UI
       setStudents((s) => s.filter((x) => x._id !== id));
       notifications.show({ title: "✅ Deleted", message: "Sheet student removed locally", color: "green" });
       return;
     }
 
-    // API delete
     try {
       const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
@@ -227,6 +244,8 @@ export default function StudentsPage() {
       <Table.Td>{Array.isArray(student.subject) ? student.subject.join(", ") : student.subject || "-"}</Table.Td>
       <Table.Td>{student.email || "-"}</Table.Td>
       <Table.Td>{student.phone || "-"}</Table.Td>
+      <Table.Td>{student.address || "-"}</Table.Td>
+      <Table.Td>{student.school || "-"}</Table.Td>
       <Table.Td>{student.created_at ? new Date(student.created_at).toLocaleString() : "-"}</Table.Td>
       <Table.Td>
         <Group gap="xs">
@@ -282,6 +301,8 @@ export default function StudentsPage() {
               <Table.Th>Subject</Table.Th>
               <Table.Th>Email</Table.Th>
               <Table.Th>Phone</Table.Th>
+              <Table.Th>Address</Table.Th>
+              <Table.Th>School</Table.Th>
               <Table.Th>CreatedAt</Table.Th>
               <Table.Th>Actions</Table.Th>
             </Table.Tr>
@@ -289,7 +310,7 @@ export default function StudentsPage() {
           <Table.Tbody>
             {rows.length > 0 ? rows : (
               <Table.Tr>
-                <Table.Td colSpan={7}><Text ta="center" c="dimmed">No students found.</Text></Table.Td>
+                <Table.Td colSpan={9}><Text ta="center" c="dimmed">No students found.</Text></Table.Td>
               </Table.Tr>
             )}
           </Table.Tbody>
@@ -318,6 +339,8 @@ export default function StudentsPage() {
             />
             <TextInput label="Email" {...form.getInputProps("email")} />
             <TextInput label="Phone" {...form.getInputProps("phone")} />
+            <TextInput label="Address" {...form.getInputProps("address")} />
+            <TextInput label="School" {...form.getInputProps("school")} />
             <Button type="submit" mt="md">
               {editingStudent ? (editingStudent.source === "api" ? "Update" : "Import & Create") : "Register"}
             </Button>
