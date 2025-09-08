@@ -267,36 +267,28 @@ export default function StudentsPage() {
     open();
   };
 
-  const handleDelete = async (id: string, source: string) => {
-    if (!window.confirm("Delete this student?")) return;
+// In your handleDelete function
+const handleDelete = async (id: string) => {
+  // ...
 
-    if (source === "sheet") {
-      setStudents((s) => s.filter((x) => x._id !== id));
-      notifications.show({
-        title: "✅ Deleted",
-        message: "Sheet student removed locally",
-        color: "green",
-      });
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Delete failed");
-      setStudents((s) => s.filter((x) => x._id !== id));
-      notifications.show({
-        title: "✅ Deleted",
-        message: "Student removed",
-        color: "green",
-      });
-    } catch {
-      notifications.show({
-        title: "❌ Error",
-        message: "Delete failed",
-        color: "red",
-      });
-    }
-  };
+  // This is the correct logic for deleting from the database
+  try {
+    const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+    if (!res.ok) throw new Error("Delete failed");
+    setStudents((s) => s.filter((x) => x._id !== id));
+    notifications.show({
+      title: "✅ Deleted",
+      message: "Student removed",
+      color: "green",
+    });
+  } catch {
+    notifications.show({
+      title: "❌ Error",
+      message: "Delete failed",
+      color: "red",
+    });
+  }
+};
 
   // === Render ===
   const filteredStudents = students.filter((student) =>
@@ -335,7 +327,7 @@ export default function StudentsPage() {
           <ActionIcon
             variant="subtle"
             color="red"
-            onClick={() => handleDelete(student._id, student.source)}
+            onClick={() => handleDelete(student._id)}
           >
             <IconTrash style={{ width: rem(16), height: rem(16) }} />
           </ActionIcon>
